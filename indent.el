@@ -255,14 +255,13 @@ Return non-nil if indentation occured or was forcely halted."
   "Perform completion if necessary based on nearby characters."
   (when (and (eq tab-always-indent 'complete)
              (or (eq last-command this-command)
-                 (let ((syn (syntax-class (syntax-after (point)))))
-                   (pcase tab-first-completion
-                     ('nil t)
-                     ('eol (eolp))
-                     ('word (not (eql 2 syn)))
-                     ('word-or-paren (not (memq syn '(2 4 5))))
-                     ('word-or-paren-or-punct (not (memq syn '(2 4 5 1))))))))
-    (completion-at-point)))
+                 (let ((next-syn (syntax-class (syntax-after (point)))) ; at cur position
+                       (prev-syn (and (> (point) (point-min))
+                                      (syntax-class (syntax-after (1- (point))))))) ; before cur pos: may be nil, 12 at begining
+                   ;; (print (list prev-syn next-syn))
+                   (when (and (memq prev-syn '(2 3)) ; Prev is word or symbol constituent
+                              (memq next-syn '(0 12 nil))) ; Next is whitespace or new line
+                     (completion-at-point)))))))
 
 
 (defun indent-for-tab-command (arg)
