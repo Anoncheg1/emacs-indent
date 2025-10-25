@@ -257,11 +257,13 @@ Return non-nil if indentation occured or was forcely halted."
              (or (eq last-command this-command)
                  (let ((next-syn (syntax-class (syntax-after (point)))) ; at cur position
                        (prev-syn (and (> (point) (point-min))
-                                      (syntax-class (syntax-after (1- (point))))))) ; before cur pos: may be nil, 12 at begining
+                                      (syntax-class (syntax-after (1- (point)))))) ; before cur pos: may be nil, 12 at begining
+                       (bmt-old (buffer-modified-tick)))
                    ;; (print (list prev-syn next-syn))
                    (when (and (memq prev-syn '(2 3)) ; Prev is word or symbol constituent
                               (memq next-syn '(0 12 6 7 nil))) ; Next is whitespace or new line, or 6 ('), 7 (")
-                     (completion-at-point)))))))
+                     (completion-at-point)
+                     (equal bmt-old (buffer-modified-tick)))))))) ; check that completion-at-point was success
 
 
 (defun indent-for-tab-command (arg)
