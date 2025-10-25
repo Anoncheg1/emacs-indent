@@ -260,7 +260,7 @@ Return non-nil if indentation occured or was forcely halted."
                                       (syntax-class (syntax-after (1- (point))))))) ; before cur pos: may be nil, 12 at begining
                    ;; (print (list prev-syn next-syn))
                    (when (and (memq prev-syn '(2 3)) ; Prev is word or symbol constituent
-                              (memq next-syn '(0 12 nil))) ; Next is whitespace or new line
+                              (memq next-syn '(0 12 6 7 nil))) ; Next is whitespace or new line, or 6 ('), 7 (")
                      (completion-at-point)))))))
 
 
