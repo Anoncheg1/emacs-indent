@@ -36,13 +36,15 @@
   :group 'indent
   :type 'integer)
 
-(defvar indent-line-function 'indent-relative
+(defvar indent-line-function 'indent-relative-bol-only
   "Function to indent the current line.
 This function will be called with no arguments.
 If it is called somewhere where it cannot auto-indent, the function
 should return `noindent' to signal that it didn't.
 Setting this function is all you need to make TAB indent appropriately.
-Don't rebind TAB unless you really need to.")
+Don't rebind TAB unless you really need to.
+It is set to `indent-relative-bol-only'  by default to allow other steps
+in `indent-for-tab-steps'.")
 
 (defcustom tab-always-indent t
   "Controls the operation of the TAB key.
@@ -92,13 +94,15 @@ This variable has no effect unless `tab-always-indent' is `complete'."
    'indent-for-tab-step-4-insert-tab
    'indent-for-tab-step-5-indent-line
    'indent-for-tab-step-6-completion)
-  "List of steps to perform in the `indent-for-tab-command' function."
+  "List of steps to perform in the `indent-for-tab-command' function.
+Stops at the first function that returns non nil."
   :type '(repeat function)
   :group 'indent)
 
 (defvar indent-line-ignored-functions '(indent-relative
                                         indent-relative-maybe
-                                        indent-relative-first-indent-point)
+                                        indent-relative-first-indent-point
+                                        indent-relative-bol-only)
   "Values that are ignored by `indent-according-to-mode'.")
 
 (defun indent-according-to-mode (&optional inhibit-widen)
@@ -233,8 +237,10 @@ Return non-nil if indentation occured or was forcely halted."
   (let ((old-tick (buffer-chars-modified-tick))
         ;; (old-point (point))
         (old-indent (current-indentation))
-        ;; - first indent attempt
-        (halted (eq 'noindent (indent--funcall-widened indent-line-function))))
+        halted)
+    ;; - first indent attempt
+    (setq halted (eq 'noindent (indent--funcall-widened indent-line-function)))
+
     (when (and (not halted)
                (eql old-indent (current-indentation)))
       (or (indent--default-inside-comment) ; should return True
@@ -261,7 +267,7 @@ Return non-nil if indentation occured or was forcely halted."
                        (bmt-old (buffer-modified-tick)))
                    ;; (print (list prev-syn next-syn))
                    (when (and (memq prev-syn '(2 3)) ; Prev is word or symbol constituent
-                              (memq next-syn '(0 12 6 7 nil))) ; Next is whitespace or new line, or 6 ('), 7 (")
+                              (memq next-syn '(0 12 6 7 5 nil))) ; Next is whitespace or new line, or 6 ('), 7 ("), 5 ())
                      (completion-at-point)
                      (equal bmt-old (buffer-modified-tick)))))))) ; check that completion-at-point was success
 
@@ -282,10 +288,15 @@ after indenting; otherwise it stays at the same position relative
 to the text."
   (interactive "P")
   (seq-find (lambda(step)
-                ;; (message step) ; debug
+                (message (symbol-name step)) ; debug
                 (funcall step arg))
             indent-for-tab-steps))
 
+
+;; (defmacro indent-widened-funcall (func &rest args)
+;;   `(save-restriction
+;;      (widen)
+;;      (funcall ,func ,@args)))
 
 (defun indent--funcall-widened (func)
   (save-restriction
@@ -704,6 +715,11 @@ column to indent to; if it is nil, use one of the three methods above."
 
 (define-obsolete-function-alias 'indent-relative-maybe
   'indent-relative-first-indent-point "26.1")
+
+(defun indent-relative-bol-only ()
+  "Use `indent-relative' only if cursor at the beginig of the line."
+  (when (looking-back "^\\s-*" (line-beginning-position))
+    (indent-relative)))
 
 (defun indent-relative-first-indent-point ()
   "Indent the current line like the previous nonblank line.
