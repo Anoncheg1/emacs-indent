@@ -237,10 +237,8 @@ Return non-nil if indentation occured or was forcely halted."
   (let ((old-tick (buffer-chars-modified-tick))
         ;; (old-point (point))
         (old-indent (current-indentation))
-        halted)
-    ;; - first indent attempt
-    (setq halted (eq 'noindent (indent--funcall-widened indent-line-function)))
-
+        ;; - first indent attempt
+        (halted (eq 'noindent (indent--funcall-widened indent-line-function))))
     (when (and (not halted)
                (eql old-indent (current-indentation)))
       (or (indent--default-inside-comment) ; should return True
@@ -267,7 +265,7 @@ Return non-nil if indentation occured or was forcely halted."
                        (bmt-old (buffer-modified-tick)))
                    ;; (print (list prev-syn next-syn))
                    (when (and (memq prev-syn '(2 3)) ; Prev is word or symbol constituent
-                              (memq next-syn '(0 12 6 7 5 nil))) ; Next is whitespace or new line, or 6 ('), 7 ("), 5 ())
+                              (memq next-syn '(0 12 6 7 4 5 nil))) ; Next is whitespace or new line, or 6 ('), 7 ("), 4 (() 5 ())
                      (completion-at-point)
                      (equal bmt-old (buffer-modified-tick)))))))) ; check that completion-at-point was success
 
