@@ -152,6 +152,7 @@ non-nil."
         t))))
 
 (defun indent-region-column (start end &optional column)
+  "Indent to COLUMN region defined by START and END."
   (interactive "r\nP")
   (setq column (prefix-numeric-value column))
     (save-excursion
@@ -167,6 +168,7 @@ non-nil."
       (move-marker end nil)))
 
 (defun indent-region-fill-prefix (start end)
+  "Insert fill-prefix for region defined by START and END."
   (interactive "r")
   (save-excursion
       (goto-char end)
@@ -234,6 +236,7 @@ Used in `indent-for-tab-step-3-indent-line'."
 Halt execution if `indent-line-function' returns `noindent'.
 If universal argument was given indent following sexp.
 Return non-nil if indentation occured or was forcely halted."
+  ;; (print indent-line-function)
   (let ((old-tick (buffer-chars-modified-tick))
         ;; (old-point (point))
         (old-indent (current-indentation))
@@ -283,7 +286,11 @@ current line, to reflect the current line's indentation.
 In most major modes, if point was in the current line's
 indentation, it is moved to the first non-whitespace character
 after indenting; otherwise it stays at the same position relative
-to the text."
+to the text.
+If `transient-mark-mode' is turned on and the region is active,
+this function instead calls `indent-region-column'.  In this case, any
+prefix argument is ignored.
+To control exact sequence `indent-for-tab-steps' variable used."
   (interactive "P")
   (seq-find (lambda(step)
                 (message (symbol-name step)) ; debug
