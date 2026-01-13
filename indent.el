@@ -42,9 +42,9 @@ This function will be called with no arguments.
 If it is called somewhere where it cannot auto-indent, the function
 should return `noindent' to signal that it didn't.
 Setting this function is all you need to make TAB indent appropriately.
-Don't rebind TAB unless you really need to.
 It is set to `indent-relative-bol-only'  by default to allow other steps
-in `indent-for-tab-steps'.")
+in `indent-for-tab-steps'.
+Don't rebind TAB unless you really need to.")
 
 (defcustom tab-always-indent t
   "Controls the operation of the TAB key.
@@ -236,9 +236,7 @@ Used in `indent-for-tab-step-3-indent-line'."
 Halt execution if `indent-line-function' returns `noindent'.
 If universal argument was given indent following sexp.
 Return non-nil if indentation occured or was forcely halted."
-  ;; (print indent-line-function)
   (let ((old-tick (buffer-chars-modified-tick))
-        ;; (old-point (point))
         (old-indent (current-indentation))
         ;; - first indent attempt
         (halted (eq 'noindent (indent--funcall-widened indent-line-function))))
@@ -259,49 +257,46 @@ Return non-nil if indentation occured or was forcely halted."
 
 
 (defun indent-for-tab-step-6-completion (&optional arg)
-  "Perform completion if necessary based on nearby characters."
+  "Perform completion if necessary based on nearby characters.
+Info for Characters classes at \"(elisp) Syntax Table Internals\"."
   (when (and (eq tab-always-indent 'complete)
              (or (eq last-command this-command)
                  (let ((next-syn (syntax-class (syntax-after (point)))) ; at cur position
                        (prev-syn (and (> (point) (point-min))
                                       (syntax-class (syntax-after (1- (point)))))) ; before cur pos: may be nil, 12 at begining
                        (bmt-old (buffer-modified-tick)))
-                   ;; (print (list prev-syn next-syn))
                    (when (and (memq prev-syn '(2 3)) ; Prev is word or symbol constituent
-                              (memq next-syn '(0 12 6 7 4 5 nil))) ; Next is whitespace or new line, or 6 ('), 7 ("), 4 (() 5 ())
+                              (memq next-syn '(0 12 6 7 4 5 nil))) ; Next is 0 whitespace and tabs or 12 new line, or 6 ('), 7 ("), 4 (() 5 ())
                      (completion-at-point)
                      (equal bmt-old (buffer-modified-tick)))))))) ; check that completion-at-point was success
 
-
-(defun indent-for-tab-command (arg)
+(defun indent-for-tab-command (&optional arg)
   "Indent the current line or region, or insert a tab, as appropriate.
-Indentation implemented by calling `indent-region' and function
-given by the variable `indent-line-function'.
+This function either inserts a tab, or indents the current line,
+or performs symbol completion, depending on `tab-always-indent'.
+The function called to actually indent the line or insert a tab
+is given by the variable `indent-line-function'.
 
-If a prefix argument is given (ARG), after this function indents
-the current line or inserts a tab, it also rigidly indents the
-entire balanced expression which starts at the beginning of the
-current line, to reflect the current line's indentation.
+If a prefix argument is given (ARG), after this function indents the
+current line or inserts a tab, it also rigidly indents the entire
+balanced expression which starts at the beginning of the current
+line, to reflect the current line's indentation.
 
 In most major modes, if point was in the current line's
 indentation, it is moved to the first non-whitespace character
 after indenting; otherwise it stays at the same position relative
 to the text.
+
 If `transient-mark-mode' is turned on and the region is active,
 this function instead calls `indent-region-column'.  In this case, any
 prefix argument is ignored.
+
 To control exact sequence `indent-for-tab-steps' variable used."
   (interactive "P")
   (seq-find (lambda(step)
                 (message (symbol-name step)) ; debug
                 (funcall step arg))
             indent-for-tab-steps))
-
-
-;; (defmacro indent-widened-funcall (func &rest args)
-;;   `(save-restriction
-;;      (widen)
-;;      (funcall ,func ,@args)))
 
 (defun indent--funcall-widened (func)
   (save-restriction
@@ -913,5 +908,5 @@ Use \\[edit-tab-stops] to edit them interactively."
 (define-key ctl-x-map "\t" 'indent-rigidly)
 (define-key esc-map "i" 'tab-to-tab-stop)
 
-;;; indent.el ends here
 (provide 'indent)
+;;; indent.el ends here
