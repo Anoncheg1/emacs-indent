@@ -189,6 +189,7 @@ If a numeric prefix is given, indent to that column."
     (setq deactivate-mark t)))
 
 (defun indent-for-tab-step-2-region-fill-prefix (&optional arg)
+  (ignore arg)
   (when (and fill-prefix (use-region-p))
     (indent-region-fill-prefix (region-beginning) (region-end))
     (setq deactivate-mark t)))
@@ -196,6 +197,7 @@ If a numeric prefix is given, indent to that column."
 (defun indent-for-tab-step-3-region-indent-lines (&optional arg)
   "Indent the region if it is activated.
 If a numeric prefix is given, indent to that column."
+  (ignore arg)
   (when (use-region-p)
     (if indent-region-function
         (save-restriction
@@ -247,6 +249,7 @@ Return non-nil if indentation occured or was forcely halted."
                     (not (eq tab-always-indent 'complete)))
             ;; - second indent attempt
             (indent--funcall-widened (default-value 'indent-line-function)))))
+
     (let ((moved-or-modified (or (not (eql old-indent (current-indentation)))
                                  (not (eql old-tick (buffer-chars-modified-tick))))))
       (when (and arg moved-or-modified)
@@ -259,16 +262,21 @@ Return non-nil if indentation occured or was forcely halted."
 (defun indent-for-tab-step-6-completion (&optional arg)
   "Perform completion if necessary based on nearby characters.
 Info for Characters classes at \"(elisp) Syntax Table Internals\"."
+  (ignore arg)
   (when (and (eq tab-always-indent 'complete)
              (or (eq last-command this-command)
-                 (let ((next-syn (syntax-class (syntax-after (point)))) ; at cur position
+                 (let ((cur-syn (syntax-class (syntax-after (point)))) ; at cur position
                        (prev-syn (and (> (point) (point-min))
                                       (syntax-class (syntax-after (1- (point)))))) ; before cur pos: may be nil, 12 at begining
                        (bmt-old (buffer-modified-tick)))
-                   (when (and (memq prev-syn '(2 3)) ; Prev is word or symbol constituent
-                              (memq next-syn '(0 12 6 7 4 5 nil))) ; Next is 0 whitespace and tabs or 12 new line, or 6 ('), 7 ("), 4 (() 5 ())
-                     (completion-at-point)
-                     (equal bmt-old (buffer-modified-tick)))))))) ; check that completion-at-point was success
+                   (when (and (memq prev-syn '(2 3))) ; Prev is word or symbol constituent
+                     (let ((p (point)))
+                       (completion-at-point)
+                       (when (and (eq (point) p)
+                                  (equal bmt-old (buffer-modified-tick)) ; check that completion-at-point was success
+                                  (memq cur-syn '(0 12 6 7 4 5 nil))) ; Current is 0 whitespace and tabs or 12 new line, or 6 ('), 7 ("), 4 (() 5 ())
+                         (ignore-errors
+                             (dabbrev-expand nil))))))))))
 
 (defun indent-for-tab-command (&optional arg)
   "Indent the current line or region, or insert a tab, as appropriate.
