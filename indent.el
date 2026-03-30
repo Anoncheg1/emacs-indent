@@ -26,6 +26,8 @@
 ;; described in the Emacs manual.
 
 ;;; Code:
+(require 'abbrev)
+(require 'dabbrev)
 
 (defgroup indent nil
   "Indentation commands."
@@ -189,6 +191,8 @@ If a numeric prefix is given, indent to that column."
     (setq deactivate-mark t)))
 
 (defun indent-for-tab-step-2-region-fill-prefix (&optional arg)
+  "If `fill-prefix' variable is set `indent-region-fill-prefix' used.
+Simply prefix before every line."
   (ignore arg)
   (when (and fill-prefix (use-region-p))
     (indent-region-fill-prefix (region-beginning) (region-end))
@@ -275,8 +279,9 @@ Info for Characters classes at \"(elisp) Syntax Table Internals\"."
                        (when (and (eq (point) p)
                                   (equal bmt-old (buffer-modified-tick)) ; check that completion-at-point was success
                                   (memq cur-syn '(0 12 6 7 4 5 nil))) ; Current is 0 whitespace and tabs or 12 new line, or 6 ('), 7 ("), 4 (() 5 ())
-                         (ignore-errors
-                             (dabbrev-expand nil))))))))))
+                         (or (expand-abbrev)
+                             (ignore-errors
+                               (dabbrev-expand nil)))))))))))
 
 (defun indent-for-tab-command (&optional arg)
   "Indent the current line or region, or insert a tab, as appropriate.
