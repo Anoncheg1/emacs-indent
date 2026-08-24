@@ -90,12 +90,12 @@ This variable has no effect unless `tab-always-indent' is `complete'."
 
 (defcustom indent-for-tab-steps
   (list
-   'indent-for-tab-step-1-region-to-column
-   'indent-for-tab-step-2-region-fill-prefix
-   'indent-for-tab-step-3-region-indent-lines
-   'indent-for-tab-step-4-insert-tab
-   'indent-for-tab-step-5-indent-line
-   'indent-for-tab-step-6-completion)
+   #'indent-for-tab-step-1-region-to-column
+   #'indent-for-tab-step-2-region-fill-prefix
+   #'indent-for-tab-step-3-region-indent-lines
+   #'indent-for-tab-step-4-insert-tab
+   #'indent-for-tab-step-5-indent-line
+   #'indent-for-tab-step-6-completion)
   "List of steps to perform in the `indent-for-tab-command' function.
 Stops at the first function that returns non nil."
   :type '(repeat function)
@@ -713,6 +713,9 @@ column to indent to; if it is nil, use one of the three methods above."
   (setq deactivate-mark t))
 
 (defun indent-region-line-by-line (start end)
+  "Indent every line by applying `indent-according-to-mode'.
+Each line in sequence. Sequential indentation may accumulate, to work
+ properly each line should be independent."
   (save-excursion
     (setq end (copy-marker end))
     (goto-char start)
@@ -725,6 +728,24 @@ column to indent to; if it is nil, use one of the three methods above."
         (and pr (progress-reporter-update pr (point))))
       (and pr (progress-reporter-done pr))
       (move-marker end nil))))
+
+(defun indent-region-like-first-line (start end)
+  "Indent all lines like first.
+Apply `indent-according-to-mode' to the first line.
+And indent rigidly others."
+  (deactivate-mark t)
+  (save-excursion
+    (goto-char start)
+    (beginning-of-line)
+    (let ((ciw (current-indentation))
+          (cl (count-lines start end)))
+      (indent-according-to-mode nil) ;; indent first line
+      (when (> cl 1)
+        (let ((differ (- (current-indentation) ciw) ) ; was = 1, become=4, 4-1 = 3+1 =4
+              (end (save-excursion (forward-line (1- cl))
+                                   (line-end-position))))
+          (indent-rigidly (point) end differ))))))
+
 
 (define-obsolete-function-alias 'indent-relative-maybe
   'indent-relative-first-indent-point "26.1")
