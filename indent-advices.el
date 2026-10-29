@@ -146,12 +146,17 @@ OLD-INDENT is the indentation before the line was reindented."
   (let ((delta (- (current-indentation) old-indent)))
     (unless (zerop delta)
       (let ((end (save-excursion
-                   (goto-char (line-beginning-position))
-                   (ignore-errors (forward-sexp) (point)))))
+                   (beginning-of-line)
+                   (condition-case nil
+                       (forward-sexp)
+                     (error nil)
+                     (user-error nil))
+                   (point))))
         (save-excursion
           (forward-line 1)
-          (when (and end (< (point) end))
+          (when (< (point) end)
             (indent-rigidly (point) end delta)))))))
+
 
 (defun indent-for-tab-step-5-indent-line (&optional arg)
   "Indent the current line.
@@ -192,10 +197,10 @@ Return non-nil if space was removed.
 ARG ignored."
   (ignore arg)
   (let ((cur-syn (syntax-class (syntax-after (point)))) ; at cur position
-        (next-syn (and (< (point) (point-max))
-                       (syntax-class (syntax-after (1+ (point))))))
-        (prev-syn (and (> (point) (point-min))
-                       (syntax-class (syntax-after (1- (point))))))
+        (next-syn (unless (eobp)
+                    (syntax-class (syntax-after (1+ (point))))))
+        (prev-syn (unless (bobp)
+                    (syntax-class (syntax-after (1- (point))))))
         point-save mark-s)
 
     ;; if space at current position
@@ -259,7 +264,7 @@ prefix argument is ignored.
 
 To control exact sequence `indent-for-tab-steps' variable used."
   (interactive "P")
-  (seq-find (lambda(step)
+  (seq-find (lambda (step)
                 (message (symbol-name step)) ; debug
                 (funcall step arg))
             indent-for-tab-steps))
