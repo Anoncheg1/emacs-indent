@@ -59,51 +59,38 @@ Stops at the first function that returns non nil."
   :group 'indent)
 
 
-(defun indent-region-column (start end &optional column)
-  "Indent to COLUMN region defined by START and END."
-  (interactive "r\nP")
-  (setq column (prefix-numeric-value column))
-    (save-excursion
-      (goto-char end)
-      (setq end (point-marker))
-      (goto-char start)
-      (or (bolp) (forward-line 1))
-      (while (< (point) end)
-        (delete-region (point) (progn (skip-chars-forward " \t") (point)))
-        (or (eolp)
-            (indent-to column 0))
-        (forward-line 1))
-      (move-marker end nil)))
+;; (defun indent-region-column (start end &optional column)
+;;   "Indent to COLUMN region defined by START and END."
+;;   (interactive "r\nP")
+;;   (setq column (prefix-numeric-value column))
+;;     (save-excursion
+;;       (goto-char end)
+;;       (setq end (point-marker))
+;;       (goto-char start)
+;;       (or (bolp) (forward-line 1))
+;;       (while (< (point) end)
+;;         (delete-region (point) (progn (skip-chars-forward " \t") (point)))
+;;         (or (eolp)
+;;             (indent-to column 0))
+;;         (forward-line 1))
+;;       (move-marker end nil)))
+
+;; ;; Replace indent-region-column entirely with:
+;; (indent-rigidly start end (- column (current-column)))
 
 (defun indent-region-fill-prefix (start end)
-  "Insert `fill-prefix' for region defined by START and END."
+  "Insert `fill-prefix' at the beginning of each line in region."
   (interactive "r")
-  (save-excursion
-      (goto-char end)
-      (setq end (point-marker))
-      (goto-char start)
-      (let ((regexp (regexp-quote fill-prefix)))
+  (when fill-prefix
+    (let ((regexp (regexp-quote fill-prefix))
+          (end (copy-marker end)))
+      (save-excursion
+        (goto-char start)
         (while (< (point) end)
-          (or (looking-at regexp)
-              (and (bolp) (eolp))
-              (insert fill-prefix))
-          (forward-line 1)))))
-
-
-(defun indent-region-fill-prefix (start end)
-  "Insert `fill-prefix' for region defined by START and END."
-  (interactive "r")
-  (save-excursion
-      (goto-char end)
-      (setq end (point-marker))
-      (goto-char start)
-      (let ((regexp (regexp-quote fill-prefix)))
-        (while (< (point) end)
-          (or (looking-at regexp)
-              (and (bolp) (eolp))
-              (insert fill-prefix))
-          (forward-line 1)))))
-
+          (unless (or (looking-at regexp) (looking-at-p "[ \t]*$"))
+            (insert fill-prefix))
+          (forward-line 1)))
+      (set-marker end nil))))
 
 
 (defun indent-for-tab-step-1-region-to-column (&optional arg)
@@ -111,8 +98,9 @@ Stops at the first function that returns non nil."
 If a numeric prefix is given, indent to that column.
 Optional argument ARG required for this case."
   (when (and arg (use-region-p))
-    (indent-region-column (region-beginning) (region-end) arg)
-    (setq deactivate-mark t)))
+    ;; (indent-region-column (region-beginning) (region-end) arg)
+    (call-interactively #'indent-rigidly) ;  start end (- column (current-column)))
+    t))
 
 (defun indent-for-tab-step-2-region-fill-prefix (&optional arg)
   "If `fill-prefix' variable is set `indent-region-fill-prefix' used.
@@ -152,17 +140,18 @@ Numeric ARG is the repeat count."
     (insert-tab arg)))
 
 (defun indent-following-sexp (old-indent)
-  "Rigidly indent the following sexp if a prefix argument was given.
-Used in `indent-for-tab-step-3-indent-line'."
-    (let ((end-marker
-           (save-excursion
-             (forward-line 0) (forward-sexp) (point-marker)))
-          (indentation-change (- (current-indentation) old-indent)))
-      (save-excursion
-        (forward-line 1)
-        (when (and (not (zerop indentation-change))
-                   (< (point) end-marker))
-          (indent-rigidly (point) end-marker indentation-change)))))
+  "Shift the rest of the current sexp by the current line's indent change.
+OLD-INDENT is the indentation before the line was reindented."
+  (let ((delta (- (current-indentation) old-indent)))
+    (unless (zerop delta)
+      (let ((end (save-excursion
+                   (goto-char (line-beginning-position))
+                   (ignore-errors (forward-sexp) (point)))))
+        (save-excursion
+          (forward-line 1)
+          (when (and end (< (point) end))
+            (indent-rigidly (point) end delta)))))))
+
 
 (defun indent-for-tab-step-5-indent-line (&optional arg)
   "Indent the current line.
