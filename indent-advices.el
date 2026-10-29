@@ -79,7 +79,8 @@ Stops at the first function that returns non nil."
 ;; (indent-rigidly start end (- column (current-column)))
 
 (defun indent-region-fill-prefix (start end)
-  "Insert `fill-prefix' at the beginning of each line in region."
+  "Insert `fill-prefix' at the beginning of each line in region.
+Argument START and END define region."
   (interactive "r")
   (when fill-prefix
     (let ((regexp (regexp-quote fill-prefix))
@@ -152,12 +153,14 @@ OLD-INDENT is the indentation before the line was reindented."
           (when (and end (< (point) end))
             (indent-rigidly (point) end delta)))))))
 
-
 (defun indent-for-tab-step-5-indent-line (&optional arg)
   "Indent the current line.
+Falling back to the default `indent-line-function' if no change
+ occurs (unless inside a comment or when completion is preferred).
 Halt execution if `indent-line-function' returns `noindent'.
-If universal argument was given indent following sexp.
-Return non-nil if indentation occured or was forcely halted."
+With ARG (universal), also indent the following sexp when indentation
+ moved or modified the buffer.
+Return non-nil if indentation occurred or was halted by `noindent'."
   (let ((old-tick (buffer-chars-modified-tick))
         (old-indent (current-indentation))
         ;; - first indent attempt
@@ -185,7 +188,8 @@ Return non-nil if indentation occured or was forcely halted."
 
 (defun indent-for-tab-step-6-remove-spaces-at-point (&optional arg)
   "Remove spaces if cursor at them, left one.
-Return non-nil if space was removed."
+Return non-nil if space was removed.
+ARG ignored."
   (ignore arg)
   (let ((cur-syn (syntax-class (syntax-after (point)))) ; at cur position
         (next-syn (and (< (point) (point-max))
@@ -209,7 +213,8 @@ Return non-nil if space was removed."
 
 (defun indent-for-tab-step-7-completion (&optional arg)
   "Perform completion if necessary based on nearby characters.
-Info for Characters classes at \"(elisp) Syntax Table Internals\"."
+Info for Characters classes at \"(elisp) Syntax Table Internals\".
+ARG ignored."
   (ignore arg)
   (when (and (eq tab-always-indent 'complete)
              (let ((cur-syn (syntax-class (syntax-after (point)))) ; at cur position
@@ -262,7 +267,7 @@ To control exact sequence `indent-for-tab-steps' variable used."
 
 
 (defun indent-region-like-first-line (start end)
-  "Indent all lines like first.
+  "Indent all lines like first between START and END.
 Apply `indent-according-to-mode' to the first line.
 And indent rigidly others."
   (deactivate-mark t)
