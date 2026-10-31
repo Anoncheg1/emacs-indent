@@ -95,39 +95,44 @@ Argument START and END define region."
 
 
 (defun indent-for-tab-step-1-region-to-column (&optional arg)
-  "Indent the region if it is activated.
+  "Indent the region if active.
 If a numeric prefix is given, indent to that column.
 Optional argument ARG required for this case."
   (when (and arg (use-region-p))
     ;; (indent-region-column (region-beginning) (region-end) arg)
-    (call-interactively #'indent-rigidly) ;  start end (- column (current-column)))
+    (call-interactively #'indent-rigidly) ; return value ignored start end (- column (current-column)))
     t))
 
 (defun indent-for-tab-step-2-region-fill-prefix (&optional arg)
-  "If `fill-prefix' variable is set `indent-region-fill-prefix' used.
-Simply prefix before every line.
+  "Indent the region if `fill-prefix' variable is set.
+Apply `indent-region-fill-prefix', that put prefix before every line.
 Optional argument ARG not used here."
   (ignore arg)
   (when (and fill-prefix (use-region-p))
-    (indent-region-fill-prefix (region-beginning) (region-end))
-    (setq deactivate-mark t)))
+    (save-restriction
+      (widen)
+      (indent-region-fill-prefix (region-beginning) (region-end)) ; return values ignored
+      (deactivate-mark t)
+      t)))
 
 (defun indent-for-tab-step-3-region-indent-lines (&optional arg)
-  "Indent the region if it is activated.
+  "Indent the region if active.
 If a numeric prefix is given, indent to that column.
+Return value
 Optional argument ARG not used here."
   (ignore arg)
   (when (use-region-p)
     (if indent-region-function
         (save-restriction
           (widen)
-          (funcall indent-region-function (region-beginning) (region-end)))
+          (funcall indent-region-function (region-beginning) (region-end))) ; return value ignored.
       ;; Else, use a default implementation that calls indent-line-function on
       ;; each line.
       (save-restriction
         (widen)
         (indent-region-line-by-line (region-beginning) (region-end))))
-    (setq deactivate-mark t)))
+    (deactivate-mark t)
+    t))
 
 (defun indent-for-tab-step-4-insert-tab (&optional arg)
   "Insert a literal tab character if necessary.
@@ -270,23 +275,25 @@ To control exact sequence `indent-for-tab-steps' variable used."
             indent-for-tab-steps))
 
 
-
 (defun indent-region-like-first-line (start end)
   "Indent all lines like first between START and END.
 Apply `indent-according-to-mode' to the first line.
+Intended for usage with `indent-region-function'.
 And indent rigidly others."
-  (deactivate-mark t)
   (save-excursion
     (goto-char start)
-    (beginning-of-line)
-    (let ((ciw (current-indentation))
-          (cl (count-lines (point) end)))
-      (indent-according-to-mode nil) ;; indent first line
-      (when (> cl 1)
-        (let ((differ (- (current-indentation) ciw) ) ; was = 1, become=4, 4-1 = 3+1 =4
-              (end (save-excursion (forward-line (1- cl))
-                                   (line-end-position))))
-          (indent-rigidly (point) end differ))))))
+    (beginning-of-line)                                 ; normalize to BOL even if START was mid-line
+    (let ((bol (point))
+          (old (current-indentation))
+          (n   (count-lines (point) end)))
+      (indent-according-to-mode nil) ; widen in `ndent-for-tab-step-3-region-indent-lines`
+      (when (> n 1)
+        (indent-rigidly (line-beginning-position 2)     ; start at BOL of line 2 — line 1 already reindented
+                        (save-excursion
+                          (goto-char bol)
+                          (forward-line (1- n))
+                          (line-end-position))
+                        (- (current-indentation) old)))))) ; deactivate mark in `ndent-for-tab-step-3-region-indent-lines`
 
 (defun indent-relative-bol-only ()
   "Use `indent-relative' only if cursor at the beginig of the line."
@@ -302,9 +309,9 @@ And indent rigidly others."
 (setq indent-line-function #'indent-relative-bol-only)
 
 (setq indent-line-ignored-functions '(indent-relative
-                                        indent-relative-maybe
-                                        indent-relative-first-indent-point
-                                        indent-relative-bol-only))
+                                      indent-relative-maybe
+                                      indent-relative-first-indent-point
+                                      indent-relative-bol-only))
 
 (advice-add 'indent-for-tab-command :override #'indent-for-tab-command--replace)
 
