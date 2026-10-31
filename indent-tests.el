@@ -1,10 +1,10 @@
-;;; indent-tests.el --- tests for indent.el
+;;; indent-tests.el --- tests for indent-advices.el  -*- lexical-binding:t -*-
 
 ;;; Code:
 (require 'ert)
 (require 'indent-advices)
 
-;; -=-= For `indent-for-tab-step-6-remove-spaces-at-point'
+;;; -=-= For `indent-for-tab-step-6-remove-spaces-at-point'
 
 (defmacro with-tiny-buffer (text &rest body)
   "Insert TEXT into a temp buffer, go to point-min, run BODY."
@@ -130,6 +130,49 @@
     (forward-char 1)
     (should-not (indent-for-tab-step-6-remove-spaces-at-point))
     (should (equal (buffer-string) "   \n"))))
+
+;;; -=-= For `indent-region-like-first-line'
+
+(ert-deftest indent-region-like-first-line-multi-line-shifts-all ()
+  "First line 2→4; following lines shift by +2, preserving relative indent.
+Lines outside the region are untouched."
+  (with-temp-buffer
+    (fundamental-mode)
+    (insert "  a\n    b\n  c\nz\n")
+    (goto-char (point-min))
+    (let ((indent-line-function (lambda () (indent-line-to 4))))
+      (indent-region-like-first-line
+       (point-min)
+       (save-excursion (forward-line 2) (line-end-position))))
+    (should (equal (split-string (buffer-string) "\n" nil)
+                   '("    a" "      b" "    c" "z" "")))))
+
+(ert-deftest indent-region-like-first-line-negative-delta ()
+  "First line 4→2; following lines shift by -2 (outdent)."
+  (with-temp-buffer
+    (fundamental-mode)
+    (insert "    a\n      b\n")
+    (goto-char (point-min))
+    (let ((indent-line-function (lambda () (indent-line-to 2))))
+      (indent-region-like-first-line
+       (point-min)
+       (save-excursion (forward-line 1) (line-end-position))))
+    (should (equal (split-string (buffer-string) "\n" nil)
+                   '("  a" "    b" "")))))
+
+(ert-deftest indent-region-like-first-line-idempotent ()
+  "Calling twice must not drift indentation."
+  (with-temp-buffer
+    (fundamental-mode)
+    (insert "  a\n    b\n")
+    (goto-char (point-min))
+    (let ((indent-line-function (lambda () (indent-line-to 4))))
+      (let ((beg (point-min))
+            (end (save-excursion (forward-line 1) (line-end-position))))
+        (indent-region-like-first-line beg end)
+        (let ((once (buffer-string)))
+          (indent-region-like-first-line beg end)
+          (should (equal once (buffer-string))))))))
 
 (provide 'indent-tests)
 

@@ -36,7 +36,7 @@
 ;; (add-to-list 'load-path "/path/to/folder/emacs-indent")
 ;; (require 'indent-advices)
 
-
+;; Redundant:
 (require 'abbrev)
 (require 'dabbrev)
 (require 'minibuffer)
@@ -138,7 +138,8 @@ Numeric ARG is the repeat count."
              (and (not tab-always-indent)
                   (or (> (current-column) (current-indentation))
                       (eq this-command last-command))))
-    (insert-tab arg)))
+    (insert-tab arg)
+    t))
 
 (defun indent-following-sexp (old-indent)
   "Shift the rest of the current sexp by the current line's indent change.
@@ -200,8 +201,7 @@ ARG ignored."
         (next-syn (unless (eobp)
                     (syntax-class (syntax-after (1+ (point))))))
         (prev-syn (unless (bobp)
-                    (syntax-class (syntax-after (1- (point))))))
-        point-save mark-s)
+                    (syntax-class (syntax-after (1- (point)))))))
 
     ;; if space at current position
     (when (and (eq cur-syn 0) ; space current char
@@ -209,11 +209,10 @@ ARG ignored."
                 (eq next-syn 0)
                 (eq prev-syn 0)) ; space before or after also
                (not (looking-back "^\\s-*" (line-beginning-position))) ; not before line
-               (not (eolp)) ; not at the end of line (spaces removed at saving)
-               (not (looking-at "\\s-*$"))            ; NEW: nothing but spaces/tabs to EOL
+               (not (looking-at "\\s-*$"))            ; nothing but spaces/tabs to EOL
                )
       (let ((old-tick (buffer-chars-modified-tick)))
-        (fixup-whitespace)
+        (call-interactively #'fixup-whitespace)
         (not (eql old-tick (buffer-chars-modified-tick))))))) ; return t if some was removed
 
 (defun indent-for-tab-step-7-completion (&optional arg)
@@ -221,24 +220,25 @@ ARG ignored."
 Info for Characters classes at \"(elisp) Syntax Table Internals\".
 ARG ignored."
   (ignore arg)
-  (when (and (eq tab-always-indent 'complete)
+  (when (and (not (bobp))
+             (eq tab-always-indent 'complete)
              (let ((cur-syn (syntax-class (syntax-after (point)))) ; at cur position
                    (prev-syn (syntax-class (syntax-after (1- (point))))) ; before cur pos: may be nil, 12 at begining
                    (bmt-old (buffer-modified-tick)))
                (when (and
                       ;; Prev is word or symbol constituent
                       prev-syn (memq prev-syn '(2 3))
-                      ;; current character is ;; end of buffer or not word.
+                      ;; current character is ;; or end of buffer or not word.
                       (or (null cur-syn) (not (memq cur-syn '(2 3)))))
-                          ;; call
-                          (or (expand-abbrev) ; return t if was found
-                              (completion-at-point) ; return t if was found
-                              (condition-case err ; dabbrev-expand without errors
-                                  (progn (dabbrev-expand arg)
-                                         (message "dabbrev-expand succeeded")
-                                         t)
-                                (user-error (message "%s" (error-message-string err)) nil)
-                                (error (message "dabbrev-expand failed: %s" (error-message-string err)) nil))))))))
+                 ;; call
+                 (or (expand-abbrev) ; return t if was found
+                     (completion-at-point) ; return t if was found
+                     (condition-case err ; dabbrev-expand without errors
+                         (progn (dabbrev-expand arg)
+                                (message "dabbrev-expand succeeded")
+                                t)
+                       (user-error (message "%s" (error-message-string err)) nil))))))))
+                       ;; (error (message "dabbrev-expand failed: %s" (error-message-string err)) nil))))))))
 
 
 (defun indent-for-tab-command--replace (&optional arg)
@@ -264,7 +264,7 @@ prefix argument is ignored.
 
 To control exact sequence `indent-for-tab-steps' variable used."
   (interactive "P")
-  (seq-find (lambda (step)
+  (seq-find (lambda (step) ; check with `when`
                 (message (symbol-name step)) ; debug
                 (funcall step arg))
             indent-for-tab-steps))
@@ -280,7 +280,7 @@ And indent rigidly others."
     (goto-char start)
     (beginning-of-line)
     (let ((ciw (current-indentation))
-          (cl (count-lines start end)))
+          (cl (count-lines (point) end)))
       (indent-according-to-mode nil) ;; indent first line
       (when (> cl 1)
         (let ((differ (- (current-indentation) ciw) ) ; was = 1, become=4, 4-1 = 3+1 =4

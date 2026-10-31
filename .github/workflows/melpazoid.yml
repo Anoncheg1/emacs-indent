@@ -52,7 +52,7 @@ jobs:
         env:
           LOCAL_REPO: ${{ github.workspace }}
           # RECIPE is your recipe as written for MELPA:
-          RECIPE: (cui :fetcher github :repo "Anoncheg1/emacs-indent")
+          RECIPE: (indent :fetcher github :repo "Anoncheg1/emacs-indent")
           # set this to false (or remove it) if the package isn't on MELPA:
           EXIST_OK: false
         run: |
